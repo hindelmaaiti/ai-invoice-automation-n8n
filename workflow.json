@@ -1,0 +1,376 @@
+{
+  "name": "AI Invoice Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_DRIVE_FOLDER_ID",
+          "mode": "id"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        304,
+        0
+      ],
+      "id": "ecf4a7ee-e4d5-4d95-9f50-c2d694c18691",
+      "name": "Google Drive Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Google Drive Trigger').item.json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        672,
+        0
+      ],
+      "id": "54b5a5a6-d5d5-45f4-9eee-1547fd613799",
+      "name": "Download file"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        0
+      ],
+      "id": "63c43ab4-5d43-4d80-b6c0-21db7c3064da",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"Fournisseur\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Nom du fournisseur. null si absent.\"\n    },\n    \"Numero_Facture\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Numéro de facture. null si absent.\"\n    },\n    \"Date\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Date de facture au format YYYY-MM-DD. null si absente ou ambiguë.\"\n    },\n    \"Montant_HT\": {\n      \"type\": [\"number\", \"null\"],\n      \"description\": \"Montant total hors taxes. null si absent.\"\n    },\n    \"TVA\": {\n      \"type\": [\"number\", \"null\"],\n      \"description\": \"Montant monétaire total de TVA, pas le pourcentage. null si absent.\"\n    },\n    \"Total_TTC\": {\n      \"type\": [\"number\", \"null\"],\n      \"description\": \"Montant total toutes taxes comprises. null si absent.\"\n    },\n    \"Devise\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Code de devise indiqué, par exemple MAD ou EUR. Ne pas deviner.\"\n    }\n  },\n  \"required\": [\n    \"Fournisseur\",\n    \"Numero_Facture\",\n    \"Date\",\n    \"Montant_HT\",\n    \"TVA\",\n    \"Total_TTC\",\n    \"Devise\"\n  ],\n  \"additionalProperties\": false\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "c0dec900-4033-4fe9-ad50-9833ef1313db",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 1000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        976,
+        208
+      ],
+      "id": "a71023b6-b249-4c25-abdf-834d96daac9c",
+      "name": "OpenRouter Chat Model"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEETS_DOCUMENT_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Feuille 1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fournisseur": "={{ $('Information Extractor').item.json.output.Fournisseur.trim() }}",
+            "Numero_Facture": "={{ $('Information Extractor').item.json.output.Numero_Facture }}",
+            "Date": "={{ $('Information Extractor').item.json.output.Date }}",
+            "Montant_HT": "={{ $('Information Extractor').item.json.output.Montant_HT }}",
+            "TVA": "={{ $('Information Extractor').item.json.output.TVA }}",
+            "Total_TTC": "={{ $('Information Extractor').item.json.output.Total_TTC }}",
+            "Devise": "={{ $('Information Extractor').item.json.output.Devise }}",
+            "Lien_Facture": "={{ 'https://drive.google.com/file/d/' + $('Google Drive Trigger').item.json.id + '/view' }}",
+            "Statut": "À vérifier"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Fournisseur",
+              "displayName": "Fournisseur",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Numero_Facture",
+              "displayName": "Numero_Facture",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Montant_HT",
+              "displayName": "Montant_HT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "TVA",
+              "displayName": "TVA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Total_TTC",
+              "displayName": "Total_TTC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Devise",
+              "displayName": "Devise",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lien_Facture",
+              "displayName": "Lien_Facture",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Statut",
+              "displayName": "Statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1776,
+        16
+      ],
+      "id": "b4a299f8-7927-40bd-ac91-b88335c43ca3",
+      "name": "Append row in sheet"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEETS_DOCUMENT_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Feuille 1",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Numero_Facture",
+              "lookupValue": "={{ $json.output.Numero_Facture }}"
+            },
+            {
+              "lookupColumn": "Fournisseur",
+              "lookupValue": "={{ $json.output.Fournisseur.trim() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "685cc271-3db1-4390-ad7a-0f84665f2937",
+      "name": "Get row(s) in sheet1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "ca6942d8-21dd-4be5-baa4-303b13405c1c",
+              "leftValue": "={{ $json.Numero_Facture }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1536,
+        0
+      ],
+      "id": "a9bfa6f4-c517-4122-8c23-7610e1423df2",
+      "name": "If1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

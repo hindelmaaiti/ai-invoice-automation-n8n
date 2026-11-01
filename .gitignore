@@ -1,0 +1,14 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+credentials*.json
+*credentials*.json
+# Original exports and private invoice data
+original-exports/
+private/
+invoices/
+# Local tooling
+__pycache__/
+.DS_Store
+Thumbs.db
